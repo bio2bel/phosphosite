@@ -2,16 +2,17 @@
 
 import logging
 import time
-from typing import Optional
+from typing import List, Optional
 
 from sqlalchemy import func
 from tqdm import tqdm
 
 from bio2bel import AbstractManager
+from pybel import BELGraph
 from .constants import MODULE_NAME
-from .models import Base, Modification, Protein, Species
-from .parser import (
-    get_acetylation_df, get_o_galnac_df, get_o_glcnac_df, get_phosphorylation_df, get_sumoylation_df,
+from .models import Base, Modification, Mutation, Protein, Species
+from .parsers import (
+    get_acetylation_df, get_o_galnac_df, get_o_glcnac_df, get_phosphorylation_df, get_ptmvar_df, get_sumoylation_df,
     get_ubiquinitation_df,
 )
 
@@ -34,7 +35,7 @@ def _parse_mod(s):
 
 class Manager(AbstractManager):
     module_name = MODULE_NAME
-    flask_admin_models = [Protein, Species, Modification]
+    flask_admin_models = [Protein, Species, Modification, Mutation]
 
     def __init__(self, connection=None):
         super().__init__(connection=connection)
@@ -82,6 +83,9 @@ class Manager(AbstractManager):
         )
         self.session.add(protein)
         return protein
+
+    def get_or_create_mutation(self, protein, from_aa, position, to_aa, **kwargs) -> Mutation:
+        pass
 
     def _populate_modification_df(self, df):
         log.info('building models')
@@ -152,17 +156,12 @@ class Manager(AbstractManager):
             modification_types=self.count_modification_types(),
         )
 
-    def populate(self, phosphorylation_url=None, sumoylation_url=None, ubiquitination_url=None, o_galnac_url=None,
-                 o_glcnac_url=None, acetylation_url=None):
-        """Downloads and populates data
+    def list_modifications(self) -> List[Modification]:
+        """Lists all modifications"""
+        return self.session.query(Modification).all()
 
-        :param phosphorylation_url:
-        :param sumoylation_url:
-        :param ubiquitination_url:
-        :param o_galnac_url:
-        :param o_glcnac_url:
-        :param acetylation_url:
-        """
+    def _populate_modifications(self, phosphorylation_url=None, sumoylation_url=None, ubiquitination_url=None,
+                                o_galnac_url=None, o_glcnac_url=None, acetylation_url=None):
         log.info('phosphorylation')
         phosphorylation_df = get_phosphorylation_df(url=phosphorylation_url)
         self._populate_modification_df(phosphorylation_df)
@@ -186,3 +185,50 @@ class Manager(AbstractManager):
         log.info('o-glcnac-ation')
         o_glcnac_df = get_o_glcnac_df(url=o_glcnac_url)
         self._populate_modification_df(o_glcnac_df)
+
+    def _populate_ptmvar(self, url=None):
+        """Download and populate the PTMVar data set
+
+        :param url:
+        :return:
+        """
+        df = get_ptmvar_df(url=url)
+
+        # 1. make sure all proteins exist
+
+        # 2. make sure all modifications exist
+
+        # 3. build mutations and mappings to modifications
+
+        # later: disease link?
+
+    def populate(self, phosphorylation_url=None, sumoylation_url=None, ubiquitination_url=None, o_galnac_url=None,
+                 o_glcnac_url=None, acetylation_url=None):
+        """Downloads and populates data
+
+        :param phosphorylation_url:
+        :param sumoylation_url:
+        :param ubiquitination_url:
+        :param o_galnac_url:
+        :param o_glcnac_url:
+        :param acetylation_url:
+        """
+        self._populate_modifications(
+            phosphorylation_url=phosphorylation_url,
+            sumoylation_url=sumoylation_url,
+            ubiquitination_url=ubiquitination_url,
+            o_galnac_url=o_galnac_url,
+            o_glcnac_url=o_glcnac_url,
+            acetylation_url=acetylation_url,
+        )
+
+    def to_bel(self) -> BELGraph:
+        graph = BELGraph(
+            name='PhosphositePlus Modifications',
+            version='1.0.0'  # need to get from data source itself
+        )
+
+        for modification in self.list_modifications():
+            modification.add_as_relation(graph)
+
+        return graph

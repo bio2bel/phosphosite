@@ -25,3 +25,12 @@ SUMOYLATION_PATH = os.path.join(DATA_DIR, 'Sumoylation_site_dataset.gz')
 
 UBIQUITINATION_URL = 'https://www.phosphosite.org/downloads/Ubiquitination_site_dataset.gz'
 UBIQUITINATION_PATH = os.path.join(DATA_DIR, 'Ubiquitination_site_dataset.gz')
+
+REGULATORY_SITES_URL = 'https://www.phosphosite.org/downloads/Regulatory_sites.gz'
+REGULATORY_SITES_PATH = os.path.join(DATA_DIR, 'Regulatory_sites.gz')
+
+DISEASE_ASSOCIATED_SITES_URL = 'https://www.phosphosite.org/downloads/Disease-associated_sites.gz'
+DISEASE_ASSOCIATED_SITES_PATH = os.path.join(DATA_DIR, 'Disease-associated_sites.gz')
+
+PTMVAR_URL = 'https://www.phosphosite.org/downloads/PTMVar.xlsx.zip'
+PTMVAR_PATH = os.path.join(DATA_DIR, 'PTMVar.xlsx.zip')

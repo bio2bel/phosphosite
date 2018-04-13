@@ -3,7 +3,7 @@
 import pandas as pd
 
 from bio2bel import make_downloader
-from bio2bel_phosphosite.constants import (
+from ..constants import (
     ACETYLATION_PATH, ACETYLATION_URL, O_GALNAC_PATH, O_GALNAC_URL, O_GLCNAC_PATH, O_GLCNAC_URL, PHOSPHORYLATION_PATH,
     PHOSPHORYLATION_URL, SUMOYLATION_PATH, SUMOYLATION_URL, UBIQUITINATION_PATH, UBIQUITINATION_URL,
 )
@@ -24,7 +24,7 @@ def make_modification_df_getter(data_url, data_path):
     def get_modifications_df(url=None, cache=True, force_download=False):
         """Gets the modifications site flat file
 
-        :param Optional[str] url: The URL (or file path) to download. Defaults to the ChEBI data.
+        :param Optional[str] url: The URL (or file path) to download.
         :param bool cache: If true, the data is downloaded to the file system, else it is loaded from the internet
         :param bool force_download: If true, overwrites a previously cached file
         :rtype: pandas.DataFrame
