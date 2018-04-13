@@ -4,15 +4,17 @@ import pandas as pd
 
 from bio2bel import make_downloader
 from bio2bel_phosphosite.constants import (
-    O_GALNAC_PATH, O_GALNAC_URL, PHOSPHORYLATION_PATH, PHOSPHORYLATION_URL, SUMOYLATION_PATH,
-    SUMOYLATION_URL, UBIQUITINATION_PATH, UBIQUITINATION_URL,
+    ACETYLATION_PATH, ACETYLATION_URL, O_GALNAC_PATH, O_GALNAC_URL, O_GLCNAC_PATH, O_GLCNAC_URL, PHOSPHORYLATION_PATH,
+    PHOSPHORYLATION_URL, SUMOYLATION_PATH, SUMOYLATION_URL, UBIQUITINATION_PATH, UBIQUITINATION_URL,
 )
 
 __all__ = [
     'get_phosphorylation_df',
-    'get_o_galnac_df',
-    'get_sumoylation_df',
+    'get_acetylation_df',
     'get_ubiquinitation_df',
+    'get_o_galnac_df',
+    'get_o_glcnac_df',
+    'get_sumoylation_df',
 ]
 
 
@@ -40,6 +42,8 @@ def make_modification_df_getter(data_url, data_path):
 
 
 get_phosphorylation_df = make_modification_df_getter(PHOSPHORYLATION_URL, PHOSPHORYLATION_PATH)
+get_acetylation_df = make_modification_df_getter(ACETYLATION_URL, ACETYLATION_PATH)
 get_ubiquinitation_df = make_modification_df_getter(UBIQUITINATION_URL, UBIQUITINATION_PATH)
 get_o_galnac_df = make_modification_df_getter(O_GALNAC_URL, O_GALNAC_PATH)
+get_o_glcnac_df = make_modification_df_getter(O_GLCNAC_URL, O_GLCNAC_PATH)
 get_sumoylation_df = make_modification_df_getter(SUMOYLATION_URL, SUMOYLATION_PATH)

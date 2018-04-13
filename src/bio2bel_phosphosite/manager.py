@@ -10,7 +10,10 @@ from tqdm import tqdm
 from bio2bel import AbstractManager
 from .constants import MODULE_NAME
 from .models import Base, Modification, Protein, Species
-from .parser import get_o_galnac_df, get_phosphorylation_df, get_sumoylation_df, get_ubiquinitation_df
+from .parser import (
+    get_acetylation_df, get_o_galnac_df, get_o_glcnac_df, get_phosphorylation_df, get_sumoylation_df,
+    get_ubiquinitation_df,
+)
 
 __all__ = ['Manager']
 
@@ -149,10 +152,24 @@ class Manager(AbstractManager):
             modification_types=self.count_modification_types(),
         )
 
-    def populate(self, phosphorylation_url=None, sumoylation_url=None, ubiquitination_url=None, n_galnac_url=None):
+    def populate(self, phosphorylation_url=None, sumoylation_url=None, ubiquitination_url=None, o_galnac_url=None,
+                 o_glcnac_url=None, acetylation_url=None):
+        """Downloads and populates data
+
+        :param phosphorylation_url:
+        :param sumoylation_url:
+        :param ubiquitination_url:
+        :param o_galnac_url:
+        :param o_glcnac_url:
+        :param acetylation_url:
+        """
         log.info('phosphorylation')
         phosphorylation_df = get_phosphorylation_df(url=phosphorylation_url)
         self._populate_modification_df(phosphorylation_df)
+
+        log.info('acetylation')
+        acetylation_df = get_acetylation_df(url=acetylation_url)
+        self._populate_modification_df(acetylation_df)
 
         log.info('sumoylation')
         sumoylation_df = get_sumoylation_df(url=sumoylation_url)
@@ -162,6 +179,10 @@ class Manager(AbstractManager):
         ubiquination_df = get_ubiquinitation_df(url=ubiquitination_url)
         self._populate_modification_df(ubiquination_df)
 
-        log.info('n-galnac-ation')
-        n_galnac_df = get_o_galnac_df(url=n_galnac_url)
-        self._populate_modification_df(n_galnac_df)
+        log.info('o-galnac-ation')
+        o_galnac_df = get_o_galnac_df(url=o_galnac_url)
+        self._populate_modification_df(o_galnac_df)
+
+        log.info('o-glcnac-ation')
+        o_glcnac_df = get_o_glcnac_df(url=o_glcnac_url)
+        self._populate_modification_df(o_glcnac_df)
