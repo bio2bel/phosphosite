@@ -37,15 +37,15 @@ class Protein(Base):
 
     id = Column(Integer, primary_key=True)
 
-    gene_symbol = Column(String(255))
-
-    name = Column(String(255), unique=True, index=True, nullable=False)
+    gene_name = Column(String(255))
+    protein_name = Column(String(255))
+    uniprot_id = Column(String(255), unique=True, index=True, nullable=False)
 
     species_id = Column(Integer, ForeignKey(f'{SPECIES_TABLE_NAME}.id'), nullable=False)
     species = relationship(Species)
 
     def __repr__(self):
-        return self.name
+        return self.gene_name
 
 
 class Modification(Base):
