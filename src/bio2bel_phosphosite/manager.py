@@ -4,6 +4,7 @@ import logging
 import time
 from typing import Optional
 
+from sqlalchemy import func
 from tqdm import tqdm
 
 from bio2bel import AbstractManager
@@ -113,6 +114,40 @@ class Manager(AbstractManager):
         log.info('committing models')
         self.session.commit()
         log.info('done committing models in %.2f seconds', time.time() - t)
+
+    def count_residues(self):
+        """
+
+        :rtype: dict[str,int]
+        """
+        return dict(self.session.query(Modification.residue, func.count(Modification.residue)).group_by(
+            Modification.residue).all())
+
+    def count_modification_types(self):
+        """
+
+        :rtype: dict[str,int]
+        """
+        return dict(
+            self.session.query(Modification.type, func.count(Modification.type)).group_by(Modification.type).all())
+
+    def count_proteins(self):
+        return self._count_model(Protein)
+
+    def count_species(self):
+        return self._count_model(Species)
+
+    def count_modifications(self):
+        return self._count_model(Modification)
+
+    def summarize(self):
+        return dict(
+            proteins=self.count_proteins(),
+            species=self.count_species(),
+            modifications=self.count_modifications(),
+            residues=self.count_residues(),
+            modification_types=self.count_modification_types(),
+        )
 
     def populate(self, phosphorylation_url=None, sumoylation_url=None, ubiquitination_url=None, n_galnac_url=None):
         log.info('phosphorylation')
