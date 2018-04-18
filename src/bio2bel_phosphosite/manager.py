@@ -4,13 +4,13 @@ import logging
 import time
 from typing import List, Optional
 
-from sqlalchemy import func
+from sqlalchemy import and_, func
 from tqdm import tqdm
 
 from bio2bel import AbstractManager
 from pybel import BELGraph
 from .constants import MODULE_NAME
-from .models import Base, Modification, Mutation, Protein, Species
+from .models import Base, Modification, ModificationType, Mutation, MutationEffect, Protein, Species
 from .parsers import (
     get_acetylation_df, get_o_galnac_df, get_o_glcnac_df, get_phosphorylation_df, get_ptmvar_df, get_sumoylation_df,
     get_ubiquinitation_df,
@@ -19,6 +19,25 @@ from .parsers import (
 __all__ = ['Manager']
 
 log = logging.getLogger(__name__)
+
+_pmod_map = {
+    'ac': 'Ac',
+    'p': 'Ph',
+    'ga': 'OGlyco',  # TODO make more specific!
+    'gl': 'OGlyco',  # TODO make more specific!
+    'sm': 'Sumo',
+    'ub': 'Ub',
+    'Acetylation': 'Ac',
+    'Ubiquitylation': 'Ub',
+    'Phosphorylation': 'Ph',
+    'Sumoylation': 'Sumo',
+    'Succinylation': 'Succ',
+    'Neddylation': 'Nedd',
+    'Methylation': 'Me',
+}
+
+_ptmvar_rows = ['UPID', 'ACC_ID', 'dbSNP', 'WT_AA', 'MUT_RSD#', 'VAR_AA', 'VAR_TYPE', 'MOD_RSD', 'MOD_AA', 'MOD_TYPE',
+                'VAR_POSITION']
 
 
 def _parse_mod(s):
@@ -30,22 +49,43 @@ def _parse_mod(s):
     residue = s[0]
     position, modification_type = s[1:].split('-')
 
-    return residue, int(position), modification_type
+    return residue, int(position), _pmod_map[modification_type]
 
 
 class Manager(AbstractManager):
+    """Manager for PhosphoSitePlus"""
     module_name = MODULE_NAME
-    flask_admin_models = [Protein, Species, Modification, Mutation]
+    flask_admin_models = [Protein, Modification, Mutation, MutationEffect, ModificationType, Species, ]
 
     def __init__(self, connection=None):
         super().__init__(connection=connection)
 
+        self.name_to_modification_type = {}
         self.name_to_species = {}
         self.uniprot_id_to_protein = {}
+        self.modifications = {}
+        self.mutations = {}
 
     @property
     def base(self):
         return Base
+
+    def get_modification_type_by_name(self, name) -> Optional[ModificationType]:
+        return self.session.query(ModificationType).filter(ModificationType.name == name).one_or_none()
+
+    def get_or_create_modification_type(self, name) -> ModificationType:
+        modification_type = self.name_to_modification_type.get(name)
+        if modification_type is not None:
+            return modification_type
+
+        modification_type = self.get_modification_type_by_name(name)
+        if modification_type is not None:
+            self.name_to_modification_type[name] = modification_type
+            return modification_type
+
+        modification_type = self.name_to_modification_type[name] = ModificationType(name=name)
+        self.session.add(modification_type)
+        return modification_type
 
     def get_species_by_name(self, name) -> Optional[Species]:
         return self.session.query(Species).filter(Species.name == name).one_or_none()
@@ -84,10 +124,73 @@ class Manager(AbstractManager):
         self.session.add(protein)
         return protein
 
-    def get_or_create_mutation(self, protein, from_aa, position, to_aa, **kwargs) -> Mutation:
-        pass
+    def get_mutation(self, uniprot_id: str, from_aa: str, position: int, to_aa: str) -> Optional[Mutation]:
+        return self.session.query(Mutation).join(Protein).filter(and_(
+            Protein.uniprot_id == uniprot_id,
+            Mutation.from_aa == from_aa,
+            Mutation.to_aa == to_aa,
+            Mutation.position == position
+        )).one_or_none()
+
+    def get_or_create_mutation(self, uniprot_id: str, from_aa: str, position: int, to_aa: str, **kwargs) -> Mutation:
+        _tuple = (uniprot_id, from_aa, position, to_aa)
+        mutation = self.mutations.get(_tuple)
+        if mutation is not None:
+            return mutation
+
+        mutation = self.get_mutation(uniprot_id, from_aa, position, to_aa)
+        if mutation is not None:
+            self.mutations[_tuple] = mutation
+            return mutation
+
+        mutation = self.modifications[_tuple] = Mutation(
+            protein=self.get_or_create_protein(uniprot_id),
+            from_aa=from_aa,
+            position=position,
+            to_aa=to_aa,
+        )
+        self.session.add(mutation)
+        return mutation
+
+    def get_modification(self, uniprot_id: str, residue: str, position: int, modification_type: str) -> Optional[
+        Modification]:
+        return self.session.query(Modification).join(Protein).join(ModificationType).filter(and_(
+            Protein.uniprot_id == uniprot_id,
+            Modification.residue == residue,
+            Modification.position == position,
+            ModificationType.name == modification_type
+        )).one_or_none()
+
+    def get_or_create_modification(self, uniprot_id: str, residue: str, position: int,
+                                   modification_type: str) -> Modification:
+        """
+        :param uniprot_id: The UniProt identifier
+        :param residue: Amino acid
+        :param position: Position
+        :param modification_type: Name of modification
+        :return:
+        """
+        _tuple = (uniprot_id, residue, position, modification_type)
+        modification = self.modifications.get(_tuple)
+        if modification is not None:
+            return modification
+
+        modification = self.get_modification(uniprot_id, residue, position, modification_type)
+        if modification is not None:
+            self.modifications[_tuple] = modification
+            return modification
+
+        modification = self.modifications[_tuple] = Modification(
+            protein=self.get_or_create_protein(uniprot_id),
+            residue=residue,
+            position=position,
+            modification_type=self.get_or_create_modification_type(modification_type),
+        )
+        self.session.add(modification)
+        return modification
 
     def _populate_modification_df(self, df):
+
         log.info('building models')
         for organism_name, organism_df in df.groupby('ORGANISM'):
 
@@ -112,9 +215,8 @@ class Manager(AbstractManager):
                         protein=protein,
                         residue=residue,
                         position=position,
-                        type=modification_type,
+                        modification_type=self.get_or_create_modification_type(modification_type),
                     )
-
                     self.session.add(modification)
 
         t = time.time()
@@ -194,16 +296,32 @@ class Manager(AbstractManager):
         """
         df = get_ptmvar_df(url=url)
 
-        # 1. make sure all proteins exist
+        it = tqdm(df[_ptmvar_rows].itertuples(), total=len(df.index), desc='PTMVar')
 
-        # 2. make sure all modifications exist
+        for idx, upid, upid2, dbsnp, from_aa, mut_rsd, to_aa, var_type, mod_rsd, mod_aa, mod_type, var_position in it:
 
-        # 3. build mutations and mappings to modifications
+            if upid != upid2:
+                log.warning('problem with line - non-matching identifiers')
+                continue
 
-        # later: disease link?
+            mutation = self.get_or_create_mutation(upid, from_aa, mut_rsd, to_aa, var_type=var_type, dbsnp=dbsnp)
+            modification = self.get_or_create_modification(upid, residue=mod_aa, position=mod_rsd,
+                                                           modification_type=mod_type)
+
+            e = MutationEffect(
+                mutation=mutation,
+                modification=modification,
+                var_position=var_position
+            )
+            self.session.add(e)
+
+        t = time.time()
+        log.info('committing models')
+        self.session.commit()
+        log.info('done committing models in %.2f seconds', time.time() - t)
 
     def populate(self, phosphorylation_url=None, sumoylation_url=None, ubiquitination_url=None, o_galnac_url=None,
-                 o_glcnac_url=None, acetylation_url=None):
+                 o_glcnac_url=None, acetylation_url=None, ptmvar_url=None):
         """Downloads and populates data
 
         :param phosphorylation_url:
@@ -212,15 +330,18 @@ class Manager(AbstractManager):
         :param o_galnac_url:
         :param o_glcnac_url:
         :param acetylation_url:
+        :param ptmvar_url:
         """
-        self._populate_modifications(
-            phosphorylation_url=phosphorylation_url,
-            sumoylation_url=sumoylation_url,
-            ubiquitination_url=ubiquitination_url,
-            o_galnac_url=o_galnac_url,
-            o_glcnac_url=o_glcnac_url,
-            acetylation_url=acetylation_url,
-        )
+        # self._populate_modifications(
+        #     phosphorylation_url=phosphorylation_url,
+        #     sumoylation_url=sumoylation_url,
+        #     ubiquitination_url=ubiquitination_url,
+        #     o_galnac_url=o_galnac_url,
+        #     o_glcnac_url=o_glcnac_url,
+        #     acetylation_url=acetylation_url,
+        # )
+
+        self._populate_ptmvar(url=ptmvar_url)
 
     def to_bel(self) -> BELGraph:
         graph = BELGraph(

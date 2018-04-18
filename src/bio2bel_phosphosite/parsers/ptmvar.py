@@ -88,8 +88,13 @@ def get_ptmvar_df(url=None, cache=True, force_download=False):
 
     with zipfile.ZipFile(url) as zf:
         with zf.open('PTMVar.xlsx') as f:
-            return pd.read_excel(
+            rv = pd.read_excel(
                 f,
                 sheet_name=1,
                 skiprows=6,
             )
+
+    # remove weird forward quote
+    rv['VAR_POSITION'] = rv['VAR_POSITION'].apply(lambda x: x.strip("'"))
+
+    return rv
