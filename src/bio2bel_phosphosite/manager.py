@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import time
 from typing import List, Optional
 
+import time
 from sqlalchemy import and_, func
 from tqdm import tqdm
 
 from bio2bel import AbstractManager
 from pybel import BELGraph
-from .constants import MODULE_NAME
+from .constants import MODULE_NAME, PROTEIN_NAMESPACE
 from .models import Base, Modification, ModificationType, Mutation, MutationEffect, Protein, Species
 from .parsers import (
     get_acetylation_df, get_o_galnac_df, get_o_glcnac_df, get_phosphorylation_df, get_ptmvar_df, get_sumoylation_df,
@@ -55,7 +55,7 @@ def _parse_mod(s):
 class Manager(AbstractManager):
     """Manager for PhosphoSitePlus"""
     module_name = MODULE_NAME
-    flask_admin_models = [Protein, Modification, Mutation, MutationEffect, ModificationType, Species, ]
+    flask_admin_models = [Protein, Modification, Mutation, MutationEffect, ModificationType, Species]
 
     def __init__(self, connection=None):
         super().__init__(connection=connection)
@@ -229,8 +229,12 @@ class Manager(AbstractManager):
 
         :rtype: dict[str,int]
         """
-        return dict(self.session.query(Modification.residue, func.count(Modification.residue)).group_by(
-            Modification.residue).all())
+        return dict(
+            self.session
+                .query(Modification.residue, func.count(Modification.residue))
+                .group_by(Modification.residue)
+                .all()
+        )
 
     def count_modification_types(self):
         """Counts the number of each modification type
@@ -238,9 +242,10 @@ class Manager(AbstractManager):
         :rtype: dict[str,int]
         """
         return dict(
-            self.session.query(ModificationType.name, func.count(ModificationType.name)) \
-                .join(Modification) \
-                .group_by(ModificationType.name) \
+            self.session
+                .query(ModificationType.name, func.count(ModificationType.name))
+                .join(Modification)
+                .group_by(ModificationType.name)
                 .all()
         )
 
@@ -274,6 +279,10 @@ class Manager(AbstractManager):
     def list_modifications(self) -> List[Modification]:
         """Lists all modifications"""
         return self.session.query(Modification).all()
+
+    def list_mutation_effects(self) -> List[MutationEffect]:
+        """Lists all mutation effects"""
+        return self.session.query(MutationEffect).all()
 
     def _populate_modifications(self, phosphorylation_url=None, sumoylation_url=None, ubiquitination_url=None,
                                 o_galnac_url=None, o_glcnac_url=None, acetylation_url=None):
@@ -357,12 +366,19 @@ class Manager(AbstractManager):
         self._populate_ptmvar(url=ptmvar_url)
 
     def to_bel(self) -> BELGraph:
+        """Converts PhosphoSite knowledge to BEL"""
         graph = BELGraph(
             name='PhosphositePlus Modifications',
             version='1.0.0'  # need to get from data source itself
         )
 
-        for modification in self.list_modifications():
-            modification.add_as_relation(graph)
+        graph.namespace_url[
+            PROTEIN_NAMESPACE] = 'https://arty.scai.fraunhofer.de/artifactory/bel/namespace/uniprot/uniprot-20170813.belns'
+
+        for m in tqdm(self.list_modifications(), total=self.count_modifications(), desc='modifications'):
+            m.add_as_relation(graph)
+
+        for me in tqdm(self.list_mutation_effects(), total=self.count_mutation_effects(), desc='mutation effects'):
+            me.add_as_relation(graph)
 
         return graph
