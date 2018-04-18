@@ -225,7 +225,7 @@ class Manager(AbstractManager):
         log.info('done committing models in %.2f seconds', time.time() - t)
 
     def count_residues(self):
-        """
+        """Counts the frequency of modification on each residue type
 
         :rtype: dict[str,int]
         """
@@ -233,12 +233,16 @@ class Manager(AbstractManager):
             Modification.residue).all())
 
     def count_modification_types(self):
-        """
+        """Counts the number of each modification type
 
         :rtype: dict[str,int]
         """
         return dict(
-            self.session.query(ModificationType.name, func.count(ModificationType.name)).group_by(ModificationType.name).all())
+            self.session.query(ModificationType.name, func.count(ModificationType.name)) \
+                .join(Modification) \
+                .group_by(ModificationType.name) \
+                .all()
+        )
 
     def count_proteins(self):
         return self._count_model(Protein)
