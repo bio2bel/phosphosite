@@ -345,14 +345,14 @@ class Manager(AbstractManager):
         :param acetylation_url:
         :param ptmvar_url:
         """
-        # self._populate_modifications(
-        #     phosphorylation_url=phosphorylation_url,
-        #     sumoylation_url=sumoylation_url,
-        #     ubiquitination_url=ubiquitination_url,
-        #     o_galnac_url=o_galnac_url,
-        #     o_glcnac_url=o_glcnac_url,
-        #     acetylation_url=acetylation_url,
-        # )
+        self._populate_modifications(
+            phosphorylation_url=phosphorylation_url,
+            sumoylation_url=sumoylation_url,
+            ubiquitination_url=ubiquitination_url,
+            o_galnac_url=o_galnac_url,
+            o_glcnac_url=o_glcnac_url,
+            acetylation_url=acetylation_url,
+        )
 
         self._populate_ptmvar(url=ptmvar_url)
 
