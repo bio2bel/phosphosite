@@ -238,7 +238,7 @@ class Manager(AbstractManager):
         :rtype: dict[str,int]
         """
         return dict(
-            self.session.query(Modification.type, func.count(Modification.type)).group_by(Modification.type).all())
+            self.session.query(ModificationType.name, func.count(ModificationType.name)).group_by(ModificationType.name).all())
 
     def count_proteins(self):
         return self._count_model(Protein)
@@ -249,6 +249,12 @@ class Manager(AbstractManager):
     def count_modifications(self):
         return self._count_model(Modification)
 
+    def count_mutations(self):
+        return self._count_model(Mutation)
+
+    def count_mutation_effects(self):
+        return self._count_model(MutationEffect)
+
     def summarize(self):
         return dict(
             proteins=self.count_proteins(),
@@ -256,6 +262,9 @@ class Manager(AbstractManager):
             modifications=self.count_modifications(),
             residues=self.count_residues(),
             modification_types=self.count_modification_types(),
+            mutations=self.count_mutations(),
+            mutation_effects=self.count_mutation_effects(),
+
         )
 
     def list_modifications(self) -> List[Modification]:
