@@ -319,7 +319,7 @@ class Manager(AbstractManager):
 
             mutation = self.get_or_create_mutation(upid, from_aa, mut_rsd, to_aa, var_type=var_type, dbsnp=dbsnp)
             modification = self.get_or_create_modification(upid, residue=mod_aa, position=mod_rsd,
-                                                           modification_type=mod_type)
+                                                           modification_type=_pmod_map[mod_type])
 
             e = MutationEffect(
                 mutation=mutation,
