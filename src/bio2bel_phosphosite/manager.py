@@ -314,7 +314,7 @@ class Manager(AbstractManager):
         for idx, upid, upid2, dbsnp, from_aa, mut_rsd, to_aa, var_type, mod_rsd, mod_aa, mod_type, var_position in it:
 
             if upid != upid2:
-                log.warning('problem with line - non-matching identifiers')
+                log.warning('problem with line - non-matching identifiers %s and %s', upid, upid2)
                 continue
 
             mutation = self.get_or_create_mutation(upid, from_aa, mut_rsd, to_aa, var_type=var_type, dbsnp=dbsnp)
