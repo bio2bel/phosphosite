@@ -4,7 +4,7 @@
 
 from sqlalchemy import Column, ForeignKey, Index, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 
 from pybel.constants import HAS_VARIANT
 from pybel.dsl import pmod, protein, protein_substitution
@@ -86,7 +86,7 @@ class Modification(Base):
     id = Column(Integer, primary_key=True)
 
     protein_id = Column(Integer, ForeignKey(f'{PROTEIN_TABLE_NAME}.id'), nullable=False)
-    protein = relationship(Protein)
+    protein = relationship(Protein, backref=backref('modifications', lazy='dynamic'))
 
     residue = Column(String(3), doc='Amino acid residue name')
     position = Column(Integer, doc='Position in protein')
@@ -118,8 +118,11 @@ class Modification(Base):
 
     Index('idx_mod', 'type', 'protein_id', 'residue', 'position')
 
+    def _mod_only(self):
+        return f'{self.residue}{self.position} {self.modification_type}'
+
     def __repr__(self):
-        return f'{self.protein} {self.residue}{self.position} {self.modification_type}'
+        return f'{self.protein} {self._mod_only()}'
 
 
 class Mutation(Base):
@@ -129,7 +132,7 @@ class Mutation(Base):
     id = Column(Integer, primary_key=True)
 
     protein_id = Column(Integer, ForeignKey(f'{PROTEIN_TABLE_NAME}.id'), nullable=False)
-    protein = relationship(Protein)
+    protein = relationship(Protein, backref=backref('mutations'))
 
     dbsnp = Column(String(255), nullable=True, doc='The dbSNP RS### identifier of the mutation')
     var_type = Column(String(32))  # either 'Unclassified', 'Polymorphism', 'Disease', 'missense'
