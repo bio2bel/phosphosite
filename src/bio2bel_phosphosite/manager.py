@@ -53,12 +53,13 @@ def _parse_mod(s):
 
 
 class Manager(AbstractManager):
-    """Manager for PhosphoSitePlus"""
+    """Manager for PhosphoSitePlus."""
+
     module_name = MODULE_NAME
     flask_admin_models = [Protein, Modification, Mutation, MutationEffect, ModificationType, Species]
 
-    def __init__(self, connection=None):
-        super().__init__(connection=connection)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         self.name_to_modification_type = {}
         self.name_to_species = {}
@@ -67,8 +68,15 @@ class Manager(AbstractManager):
         self.mutations = {}
 
     @property
-    def base(self):
+    def _base(self):
         return Base
+
+    def is_populated(self):
+        """Check if the database is already populated.
+
+        :rtype: bool
+        """
+        return 0 < self.count_modifications()
 
     def get_modification_type_by_name(self, name) -> Optional[ModificationType]:
         return self.session.query(ModificationType).filter(ModificationType.name == name).one_or_none()
