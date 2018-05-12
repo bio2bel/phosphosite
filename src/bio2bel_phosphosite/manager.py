@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import time
 from typing import List, Optional
 
-import time
 from sqlalchemy import and_, func
 from tqdm import tqdm
 
@@ -200,13 +200,12 @@ class Manager(AbstractManager):
     def _populate_modification_df(self, df):
 
         log.info('building models')
-        for organism_name, organism_df in df.groupby('ORGANISM'):
+        for organism_name, organism_df in tqdm(df.groupby('ORGANISM'), desc='Species'):
 
             species = self.get_or_create_species(organism_name)
 
             organism_group = organism_df.groupby(['GENE', 'PROTEIN', 'ACC_ID'])
-            organism_group_it = tqdm(organism_group, total=len(organism_group), desc=organism_name)
-
+            organism_group_it = tqdm(organism_group, total=len(organism_group), desc=organism_name, leave=False)
             for (gene_name, protein_name, uniprot_id), protein_df in organism_group_it:
 
                 protein = self.get_or_create_protein(
@@ -257,19 +256,22 @@ class Manager(AbstractManager):
                 .all()
         )
 
-    def count_proteins(self):
+    def count_proteins(self) -> int:
         return self._count_model(Protein)
 
-    def count_species(self):
+    def count_species(self) -> int:
         return self._count_model(Species)
 
-    def count_modifications(self):
+    def list_species(self) -> List[Species]:
+        return self._list_model(Species)
+
+    def count_modifications(self) -> int:
         return self._count_model(Modification)
 
-    def count_mutations(self):
+    def count_mutations(self) -> int:
         return self._count_model(Mutation)
 
-    def count_mutation_effects(self):
+    def count_mutation_effects(self) -> int:
         return self._count_model(MutationEffect)
 
     def summarize(self):

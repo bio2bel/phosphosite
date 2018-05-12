@@ -37,5 +37,18 @@ def get(manager, uniprot_id):
         click.echo(f'{m.position} {m.residue} {m.modification_type}')
 
 
+@manage.group()
+def species():
+    pass
+
+
+@species.command()
+@click.pass_obj
+def ls(manager):
+    """List all species"""
+    for s in manager.list_species():
+        click.echo(f'{s.id}\t{s.name}')
+
+
 if __name__ == '__main__':
     main()
