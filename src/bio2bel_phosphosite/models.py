@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 
-"""Database model for bio2bel_phosphosite"""
+"""Database model for Bio2BEL Phosphosite."""
 
 from sqlalchemy import Column, ForeignKey, Index, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import backref, relationship
 
+from pybel import BELGraph
 from pybel.constants import HAS_VARIANT, REGULATES
 from pybel.dsl import pmod, protein, protein_substitution
 from pybel.language import amino_acid_dict
@@ -32,6 +33,8 @@ MUTATION_MODIFICATION_TABLE_NAME = f'{MODULE_NAME}_mutation_modification'
 
 
 class Species(Base):
+    """Represents species."""
+
     __tablename__ = SPECIES_TABLE_NAME
 
     id = Column(Integer, primary_key=True)
@@ -43,7 +46,8 @@ class Species(Base):
 
 
 class Protein(Base):
-    """Represents proteins"""
+    """Represents proteins."""
+
     __tablename__ = PROTEIN_TABLE_NAME
 
     id = Column(Integer, primary_key=True)
@@ -60,8 +64,8 @@ class Protein(Base):
             return f'{self.uniprot_id} ({self.gene_name})'
         return self.uniprot_id
 
-    def as_bel(self):
-        """Returns this model as a BEL entity"""
+    def as_bel(self) -> protein:
+        """Returns this model as a BEL entity."""
         return protein(
             namespace=PROTEIN_NAMESPACE,
             name=str(self.uniprot_id),
@@ -69,7 +73,8 @@ class Protein(Base):
 
 
 class ModificationType(Base):
-    """Represents the type of modifications"""
+    """Represents the type of modifications."""
+
     __tablename__ = MODIFICATION_TYPE_TABLE_NAME
 
     id = Column(Integer, primary_key=True)
@@ -81,7 +86,8 @@ class ModificationType(Base):
 
 
 class Modification(Base):
-    """Represents a protein with a post-translational modification"""
+    """Represents a protein with a post-translational modification."""
+
     __tablename__ = MODIFICATION_TABLE_NAME
 
     id = Column(Integer, primary_key=True)
@@ -108,14 +114,9 @@ class Modification(Base):
         )
         return parent.with_variants(variant)
 
-    def add_as_relation(self, graph):
-        """Adds this modification to the graph
-
-        :param pybel.BELGraph graph:
-        :return: The edge hash as a string
-        :rtype: str
-        """
-        return graph.add_unqualified_edge(self.protein.as_bel(), self.as_bel(), HAS_VARIANT)
+    def add_as_relation(self, graph: BELGraph) -> str:
+        """Add this modification to the graph."""
+        return graph.add_has_variant(self.protein.as_bel(), self.as_bel())
 
     Index('idx_mod', 'type', 'protein_id', 'residue', 'position')
 
@@ -127,7 +128,8 @@ class Modification(Base):
 
 
 class Mutation(Base):
-    """Keeps track of proteins that have an amino acid substitution"""
+    """Keeps track of proteins that have an amino acid substitution."""
+
     __tablename__ = MUTATION_TABLE_NAME
 
     id = Column(Integer, primary_key=True)
@@ -148,12 +150,8 @@ class Mutation(Base):
         modification = protein_substitution(self.from_aa, self.position, self.to_aa)
         return parent.with_variants(modification)
 
-    def add_as_relation(self, graph) -> str:
-        """Adds this modification to the graph
-
-        :param pybel.BELGraph graph:
-        :return: The edge hash as a string
-        """
+    def add_as_relation(self, graph: BELGraph) -> str:
+        """Add this modification to the graph."""
         return graph.add_unqualified_edge(self.protein.as_bel(), self.as_bel(), HAS_VARIANT)
 
     def __repr__(self):
@@ -161,7 +159,8 @@ class Mutation(Base):
 
 
 class MutationEffect(Base):
-    """Represents the effects single amino acid mutations have on modifications"""
+    """Represents the effects single amino acid mutations have on modifications."""
+
     __tablename__ = MUTATION_MODIFICATION_TABLE_NAME
 
     id = Column(Integer, primary_key=True)
@@ -174,12 +173,8 @@ class MutationEffect(Base):
 
     var_position = Column(Integer, doc='Distance of mutation to modification position')
 
-    def add_as_relation(self, graph) -> str:
-        """Adds the association between this mutation and modification as an edge
-
-        :param pybel.BELGraph graph:
-        :return: The edge hash as a string
-        """
+    def add_as_relation(self, graph: BELGraph) -> str:
+        """Add the association between this mutation and modification as an edge."""
         return graph.add_qualified_edge(
             u=self.mutation.as_bel(),
             v=self.modification.as_bel(),

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""Setup module for ``bio2bel_phosphosite``"""
+"""Setup module for ``bio2bel_phosphosite``."""
 
 import codecs
 import os
@@ -24,11 +24,13 @@ CLASSIFIERS = [
     'Topic :: Scientific/Engineering :: Bio-Informatics'
 ]
 INSTALL_REQUIRES = [
-    'pybel>=0.11.1',
-    'bio2bel>=0.0.9',
+    'pybel>=0.12.1,<0.13.0',
+    'bio2bel>=0.1.5',
     'click',
     'pandas',
+    'xlrd',
     'tqdm',
+
 ]
 EXTRAS_REQUIRE = {
     'web': ['flask', 'flask-admin'],

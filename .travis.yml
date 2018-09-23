@@ -11,7 +11,7 @@ env:
   - TOXENV=py
   - TOXENV=docs
   - TOXENV=manifest
-  - TOXENV=rst-lint
+  - TOXENV=readme
 before_install:
 - pip install codecov
 - pip install pymysql

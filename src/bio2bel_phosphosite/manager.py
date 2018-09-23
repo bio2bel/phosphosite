@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import time
-from typing import List, Optional
+from typing import List, Mapping, Optional
 
+import time
 from sqlalchemy import and_, func
 from tqdm import tqdm
 
 from bio2bel import AbstractManager
+from bio2bel.manager.bel_manager import BELManagerMixin
+from bio2bel.manager.flask_manager import FlaskMixin
 from pybel import BELGraph
 from .constants import MODULE_NAME, PROTEIN_NAMESPACE
 from .models import Base, Modification, ModificationType, Mutation, MutationEffect, Protein, Species
@@ -44,7 +46,6 @@ def _parse_mod(s):
     """Parses the modification string. Follows the format Letter + Integer + Dash + Code
 
     :param s:
-    :rtype: str
     """
     residue = s[0]
     position, modification_type = s[1:].split('-')
@@ -52,7 +53,7 @@ def _parse_mod(s):
     return residue, int(position), _pmod_map[modification_type]
 
 
-class Manager(AbstractManager):
+class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
     """Manager for PhosphoSitePlus."""
 
     module_name = MODULE_NAME
@@ -71,11 +72,8 @@ class Manager(AbstractManager):
     def _base(self):
         return Base
 
-    def is_populated(self):
-        """Check if the database is already populated.
-
-        :rtype: bool
-        """
+    def is_populated(self) -> bool:
+        """Check if the database is already populated."""
         return 0 < self.count_modifications()
 
     def get_modification_type_by_name(self, name) -> Optional[ModificationType]:
@@ -140,7 +138,7 @@ class Manager(AbstractManager):
             Mutation.position == position
         )).one_or_none()
 
-    def get_or_create_mutation(self, uniprot_id: str, from_aa: str, position: int, to_aa: str, **kwargs) -> Mutation:
+    def get_or_create_mutation(self, uniprot_id: str, from_aa: str, position: int, to_aa: str) -> Mutation:
         _tuple = (uniprot_id, from_aa, position, to_aa)
         mutation = self.mutations.get(_tuple)
         if mutation is not None:
@@ -161,7 +159,7 @@ class Manager(AbstractManager):
         return mutation
 
     def get_modification(self, uniprot_id: str, residue: str, position: int, modification_type: str) -> Optional[
-        Modification]:
+                         Modification]:
         return self.session.query(Modification).join(Protein).join(ModificationType).filter(and_(
             Protein.uniprot_id == uniprot_id,
             Modification.residue == residue,
@@ -198,7 +196,6 @@ class Manager(AbstractManager):
         return modification
 
     def _populate_modification_df(self, df):
-
         log.info('building models')
         for organism_name, organism_df in tqdm(df.groupby('ORGANISM'), desc='Species'):
 
@@ -231,11 +228,8 @@ class Manager(AbstractManager):
         self.session.commit()
         log.info('done committing models in %.2f seconds', time.time() - t)
 
-    def count_residues(self):
-        """Counts the frequency of modification on each residue type
-
-        :rtype: dict[str,int]
-        """
+    def count_residues(self) -> Mapping[str, int]:
+        """Count the frequency of modification on each residue type."""
         return dict(
             self.session
                 .query(Modification.residue, func.count(Modification.residue))
@@ -243,11 +237,8 @@ class Manager(AbstractManager):
                 .all()
         )
 
-    def count_modification_types(self):
-        """Counts the number of each modification type
-
-        :rtype: dict[str,int]
-        """
+    def count_modification_types(self) -> Mapping[str, int]:
+        """Count the number of each modification type."""
         return dict(
             self.session
                 .query(ModificationType.name, func.count(ModificationType.name))
@@ -287,11 +278,11 @@ class Manager(AbstractManager):
         )
 
     def list_modifications(self) -> List[Modification]:
-        """Lists all modifications"""
+        """List all modifications."""
         return self.session.query(Modification).all()
 
     def list_mutation_effects(self) -> List[MutationEffect]:
-        """Lists all mutation effects"""
+        """List all mutation effects."""
         return self.session.query(MutationEffect).all()
 
     def _populate_modifications(self, phosphorylation_url=None, sumoylation_url=None, ubiquitination_url=None,
@@ -320,12 +311,8 @@ class Manager(AbstractManager):
         o_glcnac_df = get_o_glcnac_df(url=o_glcnac_url)
         self._populate_modification_df(o_glcnac_df)
 
-    def _populate_ptmvar(self, url=None):
-        """Download and populate the PTMVar data set
-
-        :param url:
-        :return:
-        """
+    def _populate_ptmvar(self, url: Optional[str] = None) -> None:
+        """Download and populate the PTMVar data set."""
         df = get_ptmvar_df(url=url)
 
         it = tqdm(df[_ptmvar_rows].itertuples(), total=len(df.index), desc='PTMVar')
