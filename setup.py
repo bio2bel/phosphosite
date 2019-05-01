@@ -24,7 +24,7 @@ CLASSIFIERS = [
     'Topic :: Scientific/Engineering :: Bio-Informatics'
 ]
 INSTALL_REQUIRES = [
-    'pybel>=0.12.1,<0.13.0',
+    'pybel>=0.13.1',
     'bio2bel>=0.1.5',
     'click',
     'pandas',
