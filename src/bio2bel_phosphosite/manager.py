@@ -57,6 +57,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
     """Manager for PhosphoSitePlus."""
 
     module_name = MODULE_NAME
+    _base = Base
     flask_admin_models = [Protein, Modification, Mutation, MutationEffect, ModificationType, Species]
 
     def __init__(self, *args, **kwargs):
@@ -67,10 +68,6 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         self.uniprot_id_to_protein = {}
         self.modifications = {}
         self.mutations = {}
-
-    @property
-    def _base(self):
-        return Base
 
     def is_populated(self) -> bool:
         """Check if the database is already populated."""
