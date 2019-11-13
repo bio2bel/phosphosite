@@ -49,16 +49,17 @@ def _parse_mod(s):
     """
     residue = s[0]
     position, modification_type = s[1:].split('-')
-
     return residue, int(position), _pmod_map[modification_type]
 
 
 class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
-    """Manager for PhosphoSitePlus."""
+    """Post-translational modifications."""
 
+    _base = Base
     module_name = MODULE_NAME
     _base = Base
     flask_admin_models = [Protein, Modification, Mutation, MutationEffect, ModificationType, Species]
+    edge_model = [MutationEffect, Mutation, Modification]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -155,8 +156,12 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         self.session.add(mutation)
         return mutation
 
-    def get_modification(self, uniprot_id: str, residue: str, position: int, modification_type: str) -> Optional[
-                         Modification]:
+    def get_modification(self,
+                         uniprot_id: str,
+                         residue: str,
+                         position: int,
+                         modification_type: str,
+                         ) -> Optional[Modification]:
         return self.session.query(Modification).join(Protein).join(ModificationType).filter(and_(
             Protein.uniprot_id == uniprot_id,
             Modification.residue == residue,
@@ -164,8 +169,12 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
             ModificationType.name == modification_type
         )).one_or_none()
 
-    def get_or_create_modification(self, uniprot_id: str, residue: str, position: int,
-                                   modification_type: str) -> Modification:
+    def get_or_create_modification(self,
+                                   uniprot_id: str,
+                                   residue: str,
+                                   position: int,
+                                   modification_type: str,
+                                   ) -> Modification:
         """
         :param uniprot_id: The UniProt identifier
         :param residue: Amino acid
@@ -271,7 +280,6 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
             modification_types=self.count_modification_types(),
             mutations=self.count_mutations(),
             mutation_effects=self.count_mutation_effects(),
-
         )
 
     def list_modifications(self) -> List[Modification]:
@@ -282,8 +290,14 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         """List all mutation effects."""
         return self.session.query(MutationEffect).all()
 
-    def _populate_modifications(self, phosphorylation_url=None, sumoylation_url=None, ubiquitination_url=None,
-                                o_galnac_url=None, o_glcnac_url=None, acetylation_url=None):
+    def _populate_modifications(self,
+                                phosphorylation_url=None,
+                                sumoylation_url=None,
+                                ubiquitination_url=None,
+                                o_galnac_url=None,
+                                o_glcnac_url=None,
+                                acetylation_url=None,
+                                ) -> None:
         log.info('phosphorylation')
         phosphorylation_df = get_phosphorylation_df(url=phosphorylation_url)
         self._populate_modification_df(phosphorylation_df)
@@ -336,8 +350,15 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         self.session.commit()
         log.info('done committing models in %.2f seconds', time.time() - t)
 
-    def populate(self, phosphorylation_url=None, sumoylation_url=None, ubiquitination_url=None, o_galnac_url=None,
-                 o_glcnac_url=None, acetylation_url=None, ptmvar_url=None):
+    def populate(self,
+                 phosphorylation_url=None,
+                 sumoylation_url=None,
+                 ubiquitination_url=None,
+                 o_galnac_url=None,
+                 o_glcnac_url=None,
+                 acetylation_url=None,
+                 ptmvar_url=None,
+                 ) -> None:
         """Downloads and populates data
 
         :param phosphorylation_url:
@@ -365,9 +386,6 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
             name='PhosphositePlus Modifications',
             version='1.0.0'  # need to get from data source itself
         )
-
-        graph.namespace_url[
-            PROTEIN_NAMESPACE] = 'https://arty.scai.fraunhofer.de/artifactory/bel/namespace/uniprot/uniprot-20170813.belns'
 
         for m in tqdm(self.list_modifications(), total=self.count_modifications(), desc='modifications'):
             m.add_as_relation(graph)

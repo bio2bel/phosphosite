@@ -67,7 +67,7 @@ class Protein(Base):
     def as_bel(self) -> protein:
         """Returns this model as a BEL entity."""
         return protein(
-            namespace=PROTEIN_NAMESPACE,
+            namespace='uniprot',
             name=str(self.uniprot_id),
         )
 
@@ -144,15 +144,18 @@ class Mutation(Base):
     position = Column(Integer)
     to_aa = Column(String(1))
 
+    def get_protein_substitution(self):
+        return protein_substitution(self.from_aa, self.position, self.to_aa)
+
     def as_bel(self) -> protein:
         """Return this mutated protein"""
         parent = self.protein.as_bel()
-        modification = protein_substitution(self.from_aa, self.position, self.to_aa)
+        modification = self.get_protein_substitution()
         return parent.with_variants(modification)
 
     def add_as_relation(self, graph: BELGraph) -> str:
         """Add this modification to the graph."""
-        return graph.add_unqualified_edge(self.protein.as_bel(), self.as_bel(), HAS_VARIANT)
+        return graph.add_has_variant(self.protein.as_bel(), self.as_bel())
 
     def __repr__(self):
         return f'{self.protein} {self.from_aa}{self.position}{self.to_aa}'
@@ -180,5 +183,8 @@ class MutationEffect(Base):
             v=self.modification.as_bel(),
             relation=REGULATES,
             evidence='PhosphoSitePlus',
-            citation='15174125'
+            citation='15174125',
+            annotations={
+                'bio2bel': 'phosphositeplus',
+            }
         )
